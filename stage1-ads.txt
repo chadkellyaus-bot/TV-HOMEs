@@ -1,0 +1,8 @@
+# Stage 1 - ads, promos and phone-home junk.
+# One package per line. Anything after # is just a note. Delete a line to keep that package.
+com.tcl.waterfall.overseas                # TCL home-screen content feed / promoted rows
+com.tcl.partnercustomizer                 # partner customisation of the home screen (promoted apps and rows)
+com.tcl.messagebox                        # TCL pop-up messages and promos
+android.autoinstalls.config.tcl.device    # lets the TV push partner apps onto itself
+com.tcl.esticker                          # retail e-sticker labels
+com.google.android.feedback               # Google feedback and error reporting

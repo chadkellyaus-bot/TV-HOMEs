@@ -1,0 +1,11 @@
+# Stage 2 - apps and features you said you don't use.
+# One package per line. Anything after # is just a note. Delete a line to keep that package.
+com.google.android.youtube.tvmusic        # YouTube Music
+com.google.android.videos                 # Google Play Movies & TV
+com.google.android.play.games             # Google Play Games
+com.google.android.apps.mediashell        # Chromecast built-in (casting from your phone)
+com.tcl.smartalexa                        # Alexa
+com.tcl.ui_mediaCenter                    # TCL USB media centre
+com.tcl.audioplayer                       # TCL USB audio player
+com.tcl.imageplayer                       # TCL USB photo viewer
+com.tcl.videoplayer                       # TCL USB video player
