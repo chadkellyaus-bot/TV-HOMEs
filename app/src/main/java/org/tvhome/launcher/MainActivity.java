@@ -415,7 +415,7 @@ public class MainActivity extends Activity {
         title.setText("Inputs");
         title.setTextColor(Color.WHITE);
         title.setTextSize(28);
-        box.addView(title);
+        box.addView(title, new LinearLayout.LayoutParams(-2, -2));  // wrap it so the box centres it
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER);
