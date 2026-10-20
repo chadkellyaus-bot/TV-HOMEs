@@ -14,13 +14,24 @@ import android.graphics.Path;
 import android.graphics.RadialGradient;
 import android.graphics.Rect;
 import android.graphics.Shader;
+import android.util.DisplayMetrics;
 import android.view.View;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
-/** Full-screen wallpaper that cross-fades to the next one. Holds at most two bitmaps in memory. */
+/**
+ * Full-screen wallpaper that cross-fades to the next one. Holds at most two bitmaps in memory.
+ * Photos come from your own folder (Android/data/org.tvhome.launcher/files/wallpapers) and from
+ * the public-domain photos bundled with the app (assets/wallpapers). Drawn scenes are the fallback.
+ */
 public class WallpaperView extends View {
+    private static final String PHOTO = ".*\\.(jpe?g|png|webp)";
+
     private Bitmap cur, next;
     private float fade = 1f;
     private boolean released;
@@ -34,18 +45,17 @@ public class WallpaperView extends View {
         setBackgroundColor(Color.BLACK);
     }
 
-    /** Loads the next wallpaper in the background (your photos first, then built-in scenes). */
+    /** Loads the next wallpaper in the background. */
     public void showNext() {
         released = false;
         final int i = index++;
-        final File dir = getContext().getExternalFilesDir("wallpapers");
+        final Context ctx = getContext().getApplicationContext();
+        DisplayMetrics dm = getResources().getDisplayMetrics();
+        final int w = getWidth() > 0 ? getWidth() : dm.widthPixels;
+        final int h = getHeight() > 0 ? getHeight() : dm.heightPixels;
         new Thread(() -> {
-            File[] photos = dir == null ? null
-                    : dir.listFiles((d, n) -> n.toLowerCase().matches(".*\\.(jpe?g|png|webp)"));
-            if (photos != null) Arrays.sort(photos);
-            int np = photos == null ? 0 : photos.length;
-            int k = i % (np + Scenes.COUNT);
-            Bitmap b = k < np ? decode(photos[k]) : null;
+            List<String> photos = listPhotos(ctx);
+            Bitmap b = photos.isEmpty() ? null : decode(ctx, photos.get(i % photos.size()), w, h);
             if (b == null) b = Scenes.render(i % Scenes.COUNT);
             final Bitmap nb = b;
             post(() -> show(nb));
@@ -63,7 +73,9 @@ public class WallpaperView extends View {
 
     private void show(Bitmap nb) {
         if (released) { nb.recycle(); return; }
-        if (anim != null) anim.end();
+        // Finish a fade that is still running. (Calling end() on a finished animator restarts it,
+        // which used to blank the screen before each new wallpaper.)
+        if (anim != null && anim.isRunning()) anim.end();
         next = nb;
         fade = 0f;
         anim = ValueAnimator.ofFloat(0f, 1f);
@@ -75,24 +87,55 @@ public class WallpaperView extends View {
                 cur = next;
                 next = null;
                 fade = 1f;
-                if (old != null) old.recycle();
+                if (old != null && old != cur) old.recycle();
                 invalidate();
             }
         });
         anim.start();
     }
 
-    private static Bitmap decode(File f) {
+    /** Your own photos first, then the bundled ones. */
+    private static List<String> listPhotos(Context ctx) {
+        List<String> out = new ArrayList<>();
+        File dir = ctx.getExternalFilesDir("wallpapers");
+        File[] own = dir == null ? null : dir.listFiles((d, n) -> n.toLowerCase().matches(PHOTO));
+        if (own != null) {
+            Arrays.sort(own);
+            for (File f : own) out.add("file:" + f.getPath());
+        }
+        try {
+            String[] names = ctx.getAssets().list("wallpapers");
+            if (names != null) {
+                Arrays.sort(names);
+                for (String n : names) if (n.toLowerCase().matches(PHOTO)) out.add("asset:wallpapers/" + n);
+            }
+        } catch (Exception ignored) {
+        }
+        return out;
+    }
+
+    private static InputStream open(Context ctx, String source) throws Exception {
+        return source.startsWith("asset:")
+                ? ctx.getAssets().open(source.substring(6))
+                : new FileInputStream(source.substring(5));
+    }
+
+    /** Decodes a photo just big enough to fill the screen. */
+    private static Bitmap decode(Context ctx, String source, int w, int h) {
         try {
             BitmapFactory.Options o = new BitmapFactory.Options();
             o.inJustDecodeBounds = true;
-            BitmapFactory.decodeFile(f.getPath(), o);
+            try (InputStream in = open(ctx, source)) {
+                BitmapFactory.decodeStream(in, null, o);
+            }
+            if (o.outWidth <= 0 || o.outHeight <= 0) return null;
             int s = 1;
-            while (o.outWidth / (s * 2) >= 1920) s *= 2;
-            o = new BitmapFactory.Options();
-            o.inSampleSize = s;
-            o.inPreferredConfig = Bitmap.Config.RGB_565;
-            return BitmapFactory.decodeFile(f.getPath(), o);
+            while (o.outWidth / (s * 2) >= w && o.outHeight / (s * 2) >= h) s *= 2;
+            BitmapFactory.Options d = new BitmapFactory.Options();
+            d.inSampleSize = s;
+            try (InputStream in = open(ctx, source)) {
+                return BitmapFactory.decodeStream(in, null, d);
+            }
         } catch (Throwable t) {
             return null;
         }
@@ -111,7 +154,7 @@ public class WallpaperView extends View {
         c.drawBitmap(b, src, dst, paint);
     }
 
-    /** Stylised nature scenes drawn in code, so the app needs no image files. */
+    /** Stylised nature scenes drawn in code, used when there are no photos. */
     static final class Scenes {
         static final int COUNT = 5;
         // sky top, sky bottom, sun/moon, then four ridges from far to near
