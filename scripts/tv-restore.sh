@@ -38,8 +38,19 @@ STOCK="$(grep '/' "$BK/default-launcher.txt" 2>/dev/null | tail -n 1 | tr -d '\r
 [ -n "$STOCK" ] && tv cmd package set-home-activity "$STOCK" >/dev/null 2>&1
 tv pm list packages org.tvhome.launcher | grep -q . && tv pm disable-user --user 0 org.tvhome.launcher >/dev/null 2>&1
 
+# put the animation speeds back (saved by tv-improve.ps1)
+if [ -f "$BK/animation-scales-before.txt" ]; then
+  tr -d '\r' < "$BK/animation-scales-before.txt" | while IFS='=' read -r k v; do
+    if [ -z "$v" ] || [ "$v" = "null" ]; then tv settings delete global "$k" >/dev/null 2>&1
+    else tv settings put global "$k" "$v" >/dev/null 2>&1; fi
+  done
+fi
+
 mkdir -p "$BK/screens"
-"$ADB" -s "$TV" exec-out screencap -p </dev/null > "$BK/screens/99-after-restore.png"
+# saved on the TV first: this TV adds debug text to screenshots sent straight to the PC
+"$ADB" -s "$TV" shell screencap -p /sdcard/tvhome-shot.png </dev/null >/dev/null 2>&1
+"$ADB" -s "$TV" pull /sdcard/tvhome-shot.png "$BK/screens/99-after-restore.png" </dev/null >/dev/null 2>&1
+"$ADB" -s "$TV" shell rm -f /sdcard/tvhome-shot.png </dev/null >/dev/null 2>&1
 echo
-echo "Done. Restart the TV to finish. If you installed the custom launcher,"
-echo "pick the original one again under Settings > Apps, or uninstall the launcher yourself."
+echo "Done. Restart the TV (unplug it for 10 seconds) to finish."
+echo "TV Home is switched off, not uninstalled, so it's easy to come back to."
