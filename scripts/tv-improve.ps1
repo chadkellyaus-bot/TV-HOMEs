@@ -90,9 +90,13 @@ Write-Host ""
 Write-Host "Step 2 of 4: these will be DISABLED (not uninstalled, fully reversible):"
 foreach ($p in $todo) { Write-Host ("  {0,-40} {1}" -f $p, $stage3[$p]) }
 if ($todo.Count -eq 0) { Write-Host "  (nothing - already done)" }
+$oldVer = & $adb -s $TV shell dumpsys package $mine | Select-String 'versionCode=(\d+)' | Select-Object -First 1
+if (-not $oldVer) { $note = 'TV Home will be installed.' }
+elseif ($oldVer.Matches[0].Groups[1].Value -eq '1') { $note = "Your TV Home was signed with a throwaway key, so it's reinstalled once and the dock goes back to the default apps." }
+else { $note = 'TV Home is updated in place; your dock stays as it is.' }
 Write-Host ""
-Write-Host "Also: animations set to 0.5x, and TV Home updated. The old TV Home was signed with a"
-Write-Host "throwaway key, so it's reinstalled once and your dock goes back to the default apps."
+Write-Host "Also: animations set to 0.5x, and TV Home updated to the latest version."
+Write-Host $note
 Write-Host ""
 $ans = Read-Host "Type yes to continue"
 if ($ans -ne 'yes') { Write-Host "Cancelled. Nothing on the TV was changed."; exit 0 }
