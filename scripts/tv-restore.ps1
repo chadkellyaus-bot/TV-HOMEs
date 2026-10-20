@@ -37,9 +37,22 @@ $stockHome = Get-Content "$Backup\default-launcher.txt" -ErrorAction SilentlyCon
 if ($stockHome) { & $adb -s $TV shell cmd package set-home-activity $stockHome.Trim() *> $null }
 if (& $adb -s $TV shell pm list packages org.tvhome.launcher) { & $adb -s $TV shell pm disable-user --user 0 org.tvhome.launcher *> $null }
 
+# put the animation speeds back (saved by tv-improve.ps1)
+if (Test-Path "$Backup\animation-scales-before.txt") {
+    foreach ($line in Get-Content "$Backup\animation-scales-before.txt") {
+        $k, $v = $line -split '=', 2
+        if (-not $v -or $v -eq 'null') { & $adb -s $TV shell settings delete global $k *> $null }
+        else { & $adb -s $TV shell settings put global $k $v *> $null }
+    }
+    Write-Host "Animation speeds put back"
+}
+
 New-Item -ItemType Directory -Path "$Backup\screens" -Force | Out-Null
-cmd /c "`"$adb`" -s $TV exec-out screencap -p > `"$Backup\screens\99-after-restore.png`""
+# saved on the TV first: this TV adds debug text to screenshots sent straight to the PC
+& $adb -s $TV shell screencap -p /sdcard/tvhome-shot.png *> $null
+& $adb -s $TV pull /sdcard/tvhome-shot.png "$Backup\screens\99-after-restore.png" *> $null
+& $adb -s $TV shell rm -f /sdcard/tvhome-shot.png *> $null
 
 Write-Host ""
-Write-Host "Done. Restart the TV to finish."
-Write-Host "If you installed the custom launcher, pick the original one again under Settings > Apps."
+Write-Host "Done. Restart the TV (unplug it for 10 seconds) to finish."
+Write-Host "TV Home is switched off, not uninstalled, so it's easy to come back to."
