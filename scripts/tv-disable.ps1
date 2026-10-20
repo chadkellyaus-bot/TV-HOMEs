@@ -56,7 +56,10 @@ New-Item -ItemType Directory -Path "$Backup\screens" -Force | Out-Null
 function Shot($name) {
     & $adb -s $TV shell input keyevent KEYCODE_HOME | Out-Null
     Start-Sleep -Seconds 4
-    cmd /c "`"$adb`" -s $TV exec-out screencap -p > `"$Backup\screens\$name.png`""
+    # saved on the TV first: this TV adds debug text to screenshots sent straight to the PC
+    & $adb -s $TV shell screencap -p /sdcard/tvhome-shot.png *> $null
+    & $adb -s $TV pull /sdcard/tvhome-shot.png "$Backup\screens\$name.png" *> $null
+    & $adb -s $TV shell rm -f /sdcard/tvhome-shot.png *> $null
 }
 
 Shot "$stage-1-before"
