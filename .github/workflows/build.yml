@@ -2,6 +2,11 @@ name: Build APK
 on:
   push:
   workflow_dispatch:
+permissions:
+  contents: write   # lets the build publish tv-home.apk to the "latest" release
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -14,8 +19,34 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
+      - name: Download the wallpaper photos listed in app/wallpapers.txt
+        run: |
+          mkdir -p app/src/main/assets/wallpapers
+          grep -v '^[[:space:]]*#' app/wallpapers.txt | while read -r name url rest; do
+            [ -n "$url" ] || continue
+            out="app/src/main/assets/wallpapers/$name"
+            if curl -fsSL --retry 3 -A "TVHome-build/1.1 (https://github.com/${{ github.repository }})" -o "$out" "$url"; then
+              echo "Downloaded $name ($(stat -c %s "$out") bytes)"
+            else
+              echo "::warning::Could not download $name"
+              rm -f "$out"
+            fi
+          done
       - run: gradle assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: tv-home-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish tv-home.apk to the "latest" release (doesn't expire)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk tv-home.apk
+          git tag -f latest
+          git push -f origin refs/tags/latest
+          if ! gh release view latest >/dev/null 2>&1; then
+            gh release create latest --title "TV Home (latest build)" \
+              --notes "The newest build of the TV Home launcher, rebuilt on every change. Install or update with scripts/tv-improve.ps1. Wallpaper credits are in app/wallpapers.txt."
+          fi
+          gh release upload latest tv-home.apk --clobber
