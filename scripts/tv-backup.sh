@@ -39,8 +39,11 @@ tv df /data                                  > "$OUT/storage.txt"
 tv cat /proc/meminfo                         > "$OUT/meminfo.txt"
 tv dumpsys meminfo                           > "$OUT/meminfo-by-process.txt"
 
-"$ADB" -s "$TV" exec-out screencap -p </dev/null > "$OUT/screens/00-before.png"
-SIZE=$(wc -c < "$OUT/screens/00-before.png")
+# saved on the TV first: this TV adds debug text to screenshots sent straight to the PC
+"$ADB" -s "$TV" shell screencap -p /sdcard/tvhome-shot.png </dev/null >/dev/null 2>&1
+"$ADB" -s "$TV" pull /sdcard/tvhome-shot.png "$OUT/screens/00-before.png" </dev/null >/dev/null 2>&1
+"$ADB" -s "$TV" shell rm -f /sdcard/tvhome-shot.png </dev/null >/dev/null 2>&1
+SIZE=$(wc -c < "$OUT/screens/00-before.png" 2>/dev/null || echo 0)
 [ "$SIZE" -gt 10000 ] || echo "Warning: screenshot looks empty - this TV may block screencap."
 
 echo
