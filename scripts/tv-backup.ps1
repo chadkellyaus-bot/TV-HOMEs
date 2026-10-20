@@ -33,7 +33,10 @@ Tv cat /proc/meminfo                        | Set-Content "$OUT\meminfo.txt"
 Tv dumpsys meminfo                          | Set-Content "$OUT\meminfo-by-process.txt"
 
 # cmd handles the binary screenshot safely (PowerShell would corrupt it)
-cmd /c "`"$adb`" -s $TV exec-out screencap -p > `"$OUT\screens\00-before.png`""
+# saved on the TV first: this TV adds debug text to screenshots sent straight to the PC
+& $adb -s $TV shell screencap -p /sdcard/tvhome-shot.png *> $null
+& $adb -s $TV pull /sdcard/tvhome-shot.png "$OUT\screens\00-before.png" *> $null
+& $adb -s $TV shell rm -f /sdcard/tvhome-shot.png *> $null
 if ((Get-Item "$OUT\screens\00-before.png").Length -lt 10000) {
     Write-Host "Warning: screenshot looks empty - this TV may block screencap."
 }
