@@ -22,7 +22,10 @@ if ($state -ne 'device') {
 
 function Shot($name) {
     New-Item -ItemType Directory -Path "$Backup\screens" -Force | Out-Null
-    cmd /c "`"$adb`" -s $TV exec-out screencap -p > `"$Backup\screens\$name.png`""
+    # saved on the TV first: this TV adds debug text to screenshots sent straight to the PC
+    & $adb -s $TV shell screencap -p /sdcard/tvhome-shot.png *> $null
+    & $adb -s $TV pull /sdcard/tvhome-shot.png "$Backup\screens\$name.png" *> $null
+    & $adb -s $TV shell rm -f /sdcard/tvhome-shot.png *> $null
 }
 function OnScreen {
     $line = & $adb -s $TV shell dumpsys activity activities | Select-String 'ResumedActivity' | Select-Object -First 1
